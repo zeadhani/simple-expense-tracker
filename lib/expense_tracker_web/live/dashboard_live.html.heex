@@ -1,0 +1,254 @@
+<div class="space-y-8 animate-fade-in">
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+    <div>
+      <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        Financial Dashboard
+      </h1>
+      <p class="text-gray-600 mt-2">Get insights into your spending patterns and budget performance</p>
+    </div>
+    <div class="flex items-center space-x-4">
+      <.link navigate={~p"/categories"} class="btn-gradient inline-flex items-center px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
+        <.icon name="hero-cog-6-tooth" class="w-5 h-5 mr-2" />
+        Manage Categories
+      </.link>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="expense-card p-6 animate-fade-in cursor-pointer hover:scale-105 transform transition-all duration-200" 
+         phx-hook="CounterAnimation" 
+         id="total-budget-card"
+         data-value={@total_budget}>
+      <div class="flex items-center">
+        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+          <.icon name="hero-banknotes" class="w-6 h-6 text-white" />
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-600">Total Budget</p>
+          <p class="text-2xl font-bold text-gray-900" id="budget-amount"><%= Expenses.format_money(@total_budget) %></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="expense-card p-6 animate-fade-in cursor-pointer hover:scale-105 transform transition-all duration-200" 
+         style="animation-delay: 0.1s"
+         phx-hook="TooltipHover" 
+         id="total-spent-card"
+         data-tooltip={if(@budget_percentage > 100, do: "⚠️ Over budget! Consider reviewing your expenses", else: "✅ Spending is under control")}>
+      <div class="flex items-center">
+        <div class={[
+          "w-12 h-12 rounded-lg flex items-center justify-center",
+          if(@budget_percentage > 100, do: "bg-gradient-to-r from-red-500 to-red-600", else: "bg-gradient-to-r from-emerald-500 to-emerald-600")
+        ]}>
+          <.icon name="hero-credit-card" class="w-6 h-6 text-white" />
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-600">Total Spent</p>
+          <p class={[
+            "text-2xl font-bold",
+            if(@budget_percentage > 100, do: "text-red-600", else: "text-gray-900")
+          ]}>
+            <%= Expenses.format_money(@total_spent) %>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="expense-card p-6 animate-fade-in" style="animation-delay: 0.2s">
+      <div class="flex items-center">
+        <div class={[
+          "w-12 h-12 rounded-lg flex items-center justify-center",
+          cond do
+            @budget_percentage > 100 -> "bg-gradient-to-r from-red-500 to-red-600"
+            @budget_percentage > 80 -> "bg-gradient-to-r from-amber-500 to-amber-600"
+            true -> "bg-gradient-to-r from-emerald-500 to-emerald-600"
+          end
+        ]}>
+          <.icon name="hero-chart-pie" class="w-6 h-6 text-white" />
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-600">Budget Used</p>
+          <p class={[
+            "text-2xl font-bold",
+            cond do
+              @budget_percentage > 100 -> "text-red-600"
+              @budget_percentage > 80 -> "text-amber-600"
+              true -> "text-emerald-600"
+            end
+          ]}>
+            <%= @budget_percentage %>%
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="expense-card p-6 animate-fade-in" style="animation-delay: 0.3s">
+      <div class="flex items-center">
+        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <.icon name="hero-folder" class="w-6 h-6 text-white" />
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-600">Categories</p>
+          <p class="text-2xl font-bold text-gray-900"><%= @categories_count %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="expense-card p-6 animate-fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold text-gray-900">Spending by Day</h2>
+          <span class="text-sm text-gray-500">Last 7 days</span>
+        </div>
+        <div class="space-y-4">
+          <%= for day <- @spending_by_day do %>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
+                  <span class="text-xs font-semibold text-blue-600"><%= day.day_name %></span>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900"><%= format_date(day.date) %></p>
+                  <p class="text-sm text-gray-500"><%= Expenses.format_money(day.total) %></p>
+                </div>
+              </div>
+              <div class="flex-1 ml-4 mr-4">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                       style={"width: #{if @total_spent > 0, do: min(day.total / @total_spent * 100 * 7, 100), else: 0}%"}>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="expense-card p-6 animate-fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold text-gray-900">Budget Performance</h2>
+          <.link navigate={~p"/categories"} class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+            View All →
+          </.link>
+        </div>
+        <div class="space-y-4">
+          <%= for category <- Enum.take(@budget_categories, 6) do %>
+            <div class="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+                 phx-hook="ProgressAnimation"
+                 id={"progress-#{String.replace(category.name, " ", "-")}"}
+                 data-percentage={category.percentage}>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-gray-900"><%= category.name %></h3>
+                <div class="flex items-center space-x-2">
+                  <%= if category.status == :over_budget do %>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      <.icon name="hero-exclamation-triangle" class="w-3 h-3 mr-1" />
+                      Over Budget
+                    </span>
+                  <% else %>
+                    <%= if category.status == :warning do %>
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                        <.icon name="hero-exclamation-triangle" class="w-3 h-3 mr-1" />
+                        Near Limit
+                      </span>
+                    <% else %>
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                        <.icon name="hero-check-circle" class="w-3 h-3 mr-1" />
+                        On Track
+                      </span>
+                    <% end %>
+                  <% end %>
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-sm text-gray-600 mb-3">
+                <span>Spent: <span class="font-medium text-gray-900"><%= Expenses.format_money(category.spent) %></span></span>
+                <span>Budget: <span class="font-medium text-gray-900"><%= Expenses.format_money(category.budget) %></span></span>
+              </div>
+              <div class="progress-bar">
+                <div class={[
+                  "progress-fill",
+                  case category.status do
+                    :over_budget -> "budget-danger"
+                    :warning -> "budget-warning"
+                    :safe -> "budget-safe"
+                  end
+                ]}
+                     style={"width: #{min(category.percentage, 100)}%"}>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <div class="expense-card p-6 animate-fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold text-gray-900">Recent Expenses</h2>
+          <span class="text-sm text-gray-500"><%= length(@recent_expenses) %> expenses</span>
+        </div>
+        <%= if length(@recent_expenses) == 0 do %>
+          <div class="text-center py-8">
+            <div class="w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <.icon name="hero-receipt-percent" class="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">No expenses yet</h3>
+            <p class="text-gray-500 mb-4">Start by creating a category and adding your first expense!</p>
+            <.link navigate={~p"/categories"} class="btn-gradient inline-flex items-center px-4 py-2 rounded-lg font-medium">
+              <.icon name="hero-plus" class="w-4 h-4 mr-2" />
+              Get Started
+            </.link>
+          </div>
+        <% else %>
+          <div class="space-y-3">
+            <%= for expense <- @recent_expenses do %>
+              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                    <.icon name="hero-receipt-refund" class="w-4 h-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900 text-sm"><%= expense.description %></p>
+                    <p class="text-xs text-gray-500"><%= format_date(expense.date) %></p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <p class="font-bold text-gray-900 text-sm"><%= Expenses.format_money(expense.amount_cents) %></p>
+                  <p class="text-xs text-gray-500"><%= expense.category.name %></p>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="expense-card p-6 animate-fade-in">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+        <div class="space-y-3">
+          <.link navigate={~p"/categories/new"} class="w-full flex items-center p-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl transition-all duration-200 group">
+            <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+              <.icon name="hero-folder-plus" class="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 group-hover:text-blue-700">Create Category</p>
+              <p class="text-sm text-gray-600">Set up a new budget category</p>
+            </div>
+          </.link>
+          
+          <.link navigate={~p"/categories"} class="w-full flex items-center p-3 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 rounded-xl transition-all duration-200 group">
+            <div class="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center mr-3">
+              <.icon name="hero-plus" class="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 group-hover:text-emerald-700">Add Expense</p>
+              <p class="text-sm text-gray-600">Record a new expense</p>
+            </div>
+          </.link>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

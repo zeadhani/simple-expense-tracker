@@ -1,0 +1,94 @@
+<div class="mb-8 animate-fade-in">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Budget Categories</h1>
+      <p class="text-gray-600 mt-1">Track your spending across different categories</p>
+    </div>
+    <.link patch={~p"/categories/new"} class="btn-gradient inline-flex items-center px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
+      <.icon name="hero-plus" class="w-5 h-5 mr-2" />
+      New Category
+    </.link>
+  </div>
+</div>
+<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" phx-update="stream" id="categories-grid">
+  <div :for={{id, category} <- @streams.categories} id={id}  class="expense-card p-6 animate-fade-in">
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex-1">
+        <h3 class="text-lg font-bold text-gray-900 mb-1"><%= category.name %></h3>
+        <%= if category.description do %>
+          <p class="text-sm text-gray-500 line-clamp-2"><%= category.description %></p>
+        <% end %>
+      </div>
+      <div class="ml-3 flex-shrink-0">
+        <.link patch={~p"/categories/#{category}/edit"} 
+              class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+          <.icon name="hero-pencil" class="w-4 h-4" />
+        </.link>
+      </div>
+    </div>
+    <div class="space-y-3 mb-4">
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-medium text-gray-600">Budget Progress</span>
+        <span class={"text-sm font-bold #{if(category.percentage > 100, do: "text-red-600", else: if(category.percentage > 80, do: "text-amber-600", else: "text-emerald-600"))}"}>
+          <%= Float.round(category.percentage, 1) %>%
+        </span>
+      </div>
+      
+      <div class="progress-bar">
+        <div class={"progress-fill #{if(category.percentage > 100, do: "budget-danger", else: if(category.percentage > 80, do: "budget-warning", else: "budget-safe"))}"}
+             style={"width: #{min(category.percentage, 100)}%"}>
+        </div>
+      </div>
+      <div class="flex justify-between text-sm">
+        <div class="text-gray-600">
+          <span class="font-medium">Spent:</span>
+          <span class="ml-1 font-bold text-gray-900"><%= Expenses.format_money(category.spent) %></span>
+        </div>
+        <div class="text-gray-600">
+          <span class="font-medium">Budget:</span>
+          <span class="ml-1 font-bold text-gray-900"><%= Expenses.format_money(category.monthly_budget_cents) %></span>
+        </div>
+      </div>
+      
+      <%= if category.percentage > 100 do %>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-2">
+          <div class="flex items-center">
+            <.icon name="hero-exclamation-triangle" class="w-4 h-4 text-red-500 mr-2" />
+            <span class="text-xs text-red-700 font-medium">
+              Over budget by <%= Expenses.format_money(category.spent - category.monthly_budget_cents) %>
+            </span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <.link navigate={~p"/categories/#{category}"} 
+          class="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-blue-100 border border-gray-200 hover:border-blue-300 rounded-xl text-gray-700 hover:text-blue-700 font-medium transition-all duration-200 group">
+      <.icon name="hero-arrow-right" class="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform duration-200" />
+      View Details
+    </.link>
+  </div>
+</div>
+  <div :if={length(@streams.categories.inserts) == 0} class="col-span-full text-center py-12">
+    <div class="max-w-md mx-auto">
+      <div class="w-24 h-24 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <.icon name="hero-folder-plus" class="w-12 h-12 text-blue-500" />
+      </div>
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">No categories yet</h3>
+      <p class="text-gray-500 mb-6">Get started by creating your first budget category</p>
+      <.link patch={~p"/categories/new"} class="btn-gradient inline-flex items-center px-6 py-3 rounded-xl font-semibold">
+        <.icon name="hero-plus" class="w-5 h-5 mr-2" />
+        Create First Category
+      </.link>
+    </div>
+  </div>
+
+<.modal :if={@live_action in [:new, :edit]} id="category-modal" show on_cancel={JS.patch(~p"/categories")}>
+  <.live_component
+    module={ExpenseTrackerWeb.CategoryLive.FormComponent}
+    id={@category.id || :new}
+    title={@page_title}
+    action={@live_action}
+    category={@category}
+    patch={~p"/categories"}
+  />
+</.modal>
